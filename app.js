@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await initDB();
   await displayImage(currentIndex);
 
-  document.getElementById("capture-btn").onclick = captureImage();
+  document.getElementById("capture-btn").onclick = captureImage;
   document.getElementById("prev-btn").onclick = () => changeSlide(-1);
   document.getElementById("next-btn").onclick = () => changeSlide(1);
   document.getElementById("autoplay-toggle").onchange = (e) => {
