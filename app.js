@@ -30,47 +30,49 @@ function initDB() {
 }
 
 async function captureImage() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-  const video = document.createElement("video");
-  video.srcObject = stream;
-  await video.play();
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  const track = stream.getVideoTracks()[0];
+  const imageCapture = new ImageCapture(track);
+  const blob = await imageCapture.takePhoto();
+  track.stop();
 
-  await new Promise(resolve => setTimeout(resolve, 800));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = 800;
-  canvas.height = 600;
+  const imgBitmap = await createImageBitmap(blob);
+  const canvas = new OffscreenCanvas(800, 600);
   const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  const base64 = canvas.toDataURL("image/jpeg", 0.7);
+  ctx.drawImage(imgBitmap, 0, 0, 800, 600);
+  const resizedBlob = await canvas.convertToBlob();
 
-  stream.getTracks().forEach(track => track.stop());
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const base64 = reader.result;
 
-  const coords = await getLocation();
-  const photo = {
-    data: base64,
-    timestamp: new Date().toISOString(),
-    location: coords
-  };
+    const coords = await getLocation();
+    const photo = {
+      data: base64,
+      timestamp: new Date().toISOString(),
+      location: coords
+    };
 
-  const tx = db.transaction("photos", "readwrite");
-  const store = tx.objectStore("photos");
-  const countRequest = store.count();
+    const tx = db.transaction("photos", "readwrite");
+    const store = tx.objectStore("photos");
+    const countRequest = store.count();
 
-  countRequest.onsuccess = () => {
-    if (countRequest.result >= 50) {
-      showToast();
-      const getAllRequest = store.getAll();
-      getAllRequest.onsuccess = () => {
-        const oldest = getAllRequest.result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[0];
-        store.delete(oldest.id);
+    countRequest.onsuccess = async () => {
+      if (countRequest.result >= 50) {
+        showToast();
+        const getAllRequest = store.getAll();
+        getAllRequest.onsuccess = () => {
+          const oldest = getAllRequest.result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[0];
+          store.delete(oldest.id);
+          store.add(photo);
+        };
+      } else {
         store.add(photo);
-      };
-    } else {
-      store.add(photo);
-    }
-    tx.oncomplete = () => displayImage(0);
+      }
+      tx.oncomplete = () => displayImage(0);
+    };
   };
+  reader.readAsDataURL(resizedBlob);
 }
 
 function getLocation() {
