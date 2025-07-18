@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Capture PWA</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+  <meta name="theme-color" content="#222" />
+</head>
+<body>
+  <header>
+    <h1>Photo Journal</h1>
+    <button id="capture-btn">📸 Capture</button>
+    <label><input type="checkbox" id="autoplay-toggle" /> Autoplay</label>
+  </header>
+
+  <main id="slideshow">
+    <div id="image-container"></div>
+    <button id="prev-btn">←</button>
+    <button id="next-btn">→</button>
+  </main>
+
+  <div id="toast" class="hidden">50 image limit reached. Oldest will be deleted unless saved.</div>
+
+  <script src="app.js"></script>
+</body>
+</html>
