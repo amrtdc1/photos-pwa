@@ -19,7 +19,7 @@ function initDB() {
   return new Promise((resolve) => {
     const request = indexedDB.open("photo-db", 1);
     request.onupgradeneeded = () => {
-      const db = request.result;
+      db = request.result;  // Fix: use global db
       db.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
     };
     request.onsuccess = () => {
@@ -30,49 +30,59 @@ function initDB() {
 }
 
 async function captureImage() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  const track = stream.getVideoTracks()[0];
-  const imageCapture = new ImageCapture(track);
-  const blob = await imageCapture.takePhoto();
-  track.stop();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const video = document.createElement("video");
+    video.srcObject = stream;
+    await video.play();
 
-  const imgBitmap = await createImageBitmap(blob);
-  const canvas = new OffscreenCanvas(800, 600);
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(imgBitmap, 0, 0, 800, 600);
-  const resizedBlob = await canvas.convertToBlob();
+    // Wait for video to be ready
+    await new Promise((resolve) => video.onloadedmetadata = resolve);
 
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const base64 = reader.result;
+    // Capture from video to canvas
+    const canvas = document.createElement("canvas");
+    canvas.width = 800;
+    canvas.height = 600;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    stream.getTracks().forEach(track => track.stop());
 
-    const coords = await getLocation();
-    const photo = {
-      data: base64,
-      timestamp: new Date().toISOString(),
-      location: coords
-    };
-
-    const tx = db.transaction("photos", "readwrite");
-    const store = tx.objectStore("photos");
-    const countRequest = store.count();
-
-    countRequest.onsuccess = async () => {
-      if (countRequest.result >= 50) {
-        showToast();
-        const getAllRequest = store.getAll();
-        getAllRequest.onsuccess = () => {
-          const oldest = getAllRequest.result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[0];
-          store.delete(oldest.id);
-          store.add(photo);
+    canvas.toBlob(async (blob) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result;
+        const coords = await getLocation();
+        const photo = {
+          data: base64,
+          timestamp: new Date().toISOString(),
+          location: coords
         };
-      } else {
-        store.add(photo);
-      }
-      tx.oncomplete = () => displayImage(0);
-    };
-  };
-  reader.readAsDataURL(resizedBlob);
+
+        const tx = db.transaction("photos", "readwrite");
+        const store = tx.objectStore("photos");
+        const countRequest = store.count();
+
+        countRequest.onsuccess = () => {
+          if (countRequest.result >= 50) {
+            showToast();
+            const getAllRequest = store.getAll();
+            getAllRequest.onsuccess = () => {
+              const oldest = getAllRequest.result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[0];
+              store.delete(oldest.id);
+              store.add(photo);
+            };
+          } else {
+            store.add(photo);
+          }
+        };
+
+        tx.oncomplete = () => displayImage(0);
+      };
+      reader.readAsDataURL(blob);
+    }, 'image/jpeg', 0.8);
+  } catch (err) {
+    alert("Unable to access camera: " + err.message);
+  }
 }
 
 function getLocation() {
@@ -119,8 +129,9 @@ function displayImage(index) {
       currentIndex = index;
 
       const photo = photos[currentIndex];
-      const imgHTML = `<img src="${photo.data}" alt="photo" onclick="downloadImage('${photo.data}', '${photo.timestamp}')"/>`;
-      document.getElementById("image-container").innerHTML = imgHTML;
+      const container = document.getElementById("image-container");
+      container.innerHTML = `<img id="photo-img" src="${photo.data}" alt="photo" />`;
+      document.getElementById("photo-img").onclick = () => downloadImage(photo.data, photo.timestamp);
       resolve();
     };
   });
