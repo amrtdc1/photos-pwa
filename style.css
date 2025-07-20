@@ -1,82 +1,106 @@
 body {
+  font-family: Arial, sans-serif;
+  font-size: 16px;
+  background-color: white;
+  color: black;
   margin: 0;
-  font-family: sans-serif;
-  background: #111;
+  padding: 0;
+  text-align: center;
+}
+
+body.light {
+  background-color: #000;
   color: #fff;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
 }
 
 header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #222;
-  padding: 0.75rem;
+  padding: 10px 16px;
+  background-color: #111;
+  color: #fff;
 }
 
-button {
-  background: #444;
-  color: white;
-  border: none;
-  padding: 0.6rem 1rem;
-  font-size: 1rem;
-  border-radius: 5px;
+h1 {
+  margin: 0;
+  font-size: 1.2rem;
 }
 
-main {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#image-container {
-  max-width: 100%;
-  max-height: 100%;
-  position: relative;
+video {
+  width: 90vw;
+  max-width: 100px;
+  height: 100px;
+  border: 2px solid #ccc;
+  margin-top: 10px;
+  border-radius: 8px;
+  display: none;
 }
 
 #image-container img {
-  max-width: 100%;
-  max-height: 100%;
-  display: block;
-  margin: auto;
-  border-radius: 8px;
+  max-width: 90vw;
+  max-height: 300px;
+  margin-top: 10px;
+  border-radius: 6px;
 }
 
-#prev-btn,
-#next-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(0,0,0,0.6);
-  font-size: 2rem;
-  border: none;
+body button {
+  background-color: black;
   color: white;
-  padding: 0.5rem;
-  z-index: 10;
+  border: 5px solid;
+  padding: 12px 18px;
+  margin: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background 0.3s ease;
 }
 
-#prev-btn { left: 0.5rem; }
-#next-btn { right: 0.5rem; }
+body.light button{
+  background-color: white;
+  color: black;
+  border: 5px solid;
+  padding: 12px 18px;
+  margin: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background-color: #333;
+}
+
+.controls,
+.gallery-controls {
+  margin-top: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#dark-toggle {
+  background-color: #444;
+  border: 1px solid #888;
+}
 
 #toast {
-  position: fixed;
-  bottom: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #f33;
-  padding: 0.75rem 1.25rem;
+  background-color: #e53935;
   color: white;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  z-index: 100;
+  padding: 10px 20px;
+  border-radius: 5px;
+  margin: 20px auto;
+  display: inline-block;
+  font-weight: bold;
 }
 
-.hidden {
+#toast.hidden {
   display: none;
+}
+
+footer {
+  padding: 10px;
+  font-size: 0.8rem;
+  color: #888;
 }
