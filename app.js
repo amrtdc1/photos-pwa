@@ -1,160 +1,181 @@
-let db, currentIndex = 0, autoplay = false, intervalId;
+let stream;
+let usingFrontCamera = false;
+let currentIndex = 0;
+const maxImages = 50;
+let db;
 
-document.addEventListener("DOMContentLoaded", async () => {
-  await initDB();
-  await displayImage(currentIndex);
+//const debug = msg => {
+ // document.getElementById('debug-log').textContent = msg;
+//};
 
-  document.getElementById("capture-btn").onclick = () => {
-  console.log("Capture button clicked!");
-  captureImage();
+// Example
+//debug('App loaded');
+
+const dbName = 'PhotoGalleryDB';
+
+const initDB = () => {
+  const request = indexedDB.open(dbName, 1);
+  request.onupgradeneeded = event => {
+    db = event.target.result;
+    db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
+  };
+  request.onsuccess = event => {
+    db = event.target.result;
+    loadImages();
+  };
 };
-  document.getElementById("prev-btn").onclick = () => changeSlide(-1);
-  document.getElementById("next-btn").onclick = () => changeSlide(1);
-  document.getElementById("autoplay-toggle").onchange = (e) => {
-    autoplay = e.target.checked;
-    autoplay ? startAutoplay() : stopAutoplay();
+
+const startCamera = async () => {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+  }
+
+  const constraints = {
+    video: {
+      facingMode: usingFrontCamera ? 'user' : 'environment'
+    },
+    audio: false
   };
 
-  registerServiceWorker();
-});
-
-function initDB() {
-  return new Promise((resolve) => {
-    const request = indexedDB.open("photo-db", 1);
-    request.onupgradeneeded = () => {
-      db = request.result;  // Fix: use global db
-      db.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
-    };
-    request.onsuccess = () => {
-      db = request.result;
-      resolve();
-    };
-  });
-}
-
-async function captureImage() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    const video = document.createElement("video");
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const video = document.getElementById('camera');
     video.srcObject = stream;
-    await video.play();
-
-    // Wait for video to be ready
-    await new Promise((resolve) => video.onloadedmetadata = resolve);
-
-    // Capture from video to canvas
-    const canvas = document.createElement("canvas");
-    canvas.width = 800;
-    canvas.height = 600;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    stream.getTracks().forEach(track => track.stop());
-
-    canvas.toBlob(async (blob) => {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result;
-        const coords = await getLocation();
-        const photo = {
-          data: base64,
-          timestamp: new Date().toISOString(),
-          location: coords
-        };
-
-        const tx = db.transaction("photos", "readwrite");
-        const store = tx.objectStore("photos");
-        const countRequest = store.count();
-
-        countRequest.onsuccess = () => {
-          if (countRequest.result >= 50) {
-            showToast();
-            const getAllRequest = store.getAll();
-            getAllRequest.onsuccess = () => {
-              const oldest = getAllRequest.result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[0];
-              store.delete(oldest.id);
-              store.add(photo);
-            };
-          } else {
-            store.add(photo);
-          }
-        };
-
-        tx.oncomplete = () => displayImage(0);
-      };
-      reader.readAsDataURL(blob);
-    }, 'image/jpeg', 0.8);
+	 video.style.display = "block";
+    video.play();
   } catch (err) {
-    alert("Unable to access camera: " + err.message);
+    alert('Camera access failed: ' + err.message);
   }
-}
+};
 
-function getLocation() {
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        resolve({
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-          accuracy: pos.coords.accuracy
-        });
-      },
-      () => resolve(null),
-      { enableHighAccuracy: true }
-    );
-  });
-}
+const switchCamera = () => {
+  usingFrontCamera = !usingFrontCamera;
+  startCamera();
+};
 
-function changeSlide(dir) {
-  currentIndex += dir;
-  displayImage(currentIndex);
-}
+const capturePhoto = () => {
+  if (!stream) return;
 
-function startAutoplay() {
-  intervalId = setInterval(() => changeSlide(1), 3000);
-}
+  const video = document.getElementById('camera');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-function stopAutoplay() {
-  clearInterval(intervalId);
-}
-
-function displayImage(index) {
-  return new Promise((resolve) => {
-    const tx = db.transaction("photos", "readonly");
-    const store = tx.objectStore("photos");
-    const req = store.getAll();
-
-    req.onsuccess = () => {
-      const photos = req.result.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      if (photos.length === 0) return;
-
-      if (index < 0) index = photos.length - 1;
-      if (index >= photos.length) index = 0;
-      currentIndex = index;
-
-      const photo = photos[currentIndex];
-      const container = document.getElementById("image-container");
-      container.innerHTML = `<img id="photo-img" src="${photo.data}" alt="photo" />`;
-      document.getElementById("photo-img").onclick = () => downloadImage(photo.data, photo.timestamp);
-      resolve();
+  canvas.toBlob(blob => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result;
+      savePhoto(base64);
     };
+    reader.readAsDataURL(blob);
+  }, 'image/jpeg', 0.8);
+};
+
+const savePhoto = base64 => {
+  const tx = db.transaction('photos', 'readwrite');
+  const store = tx.objectStore('photos');
+
+  store.count().onsuccess = e => {
+    if (e.target.result >= maxImages) {
+      //debug(e.target.result);
+		showToast();
+      return;
+    }
+
+    store.add({
+  data: base64,
+  timestamp: Date.now()
+}).onsuccess = () => {
+  // Move index to newest image
+  const countRequest = store.count();
+  countRequest.onsuccess = () => {
+    currentIndex = countRequest.result - 1;
+    loadImages();
+  };
+};
+  };
+};
+
+const loadImages = () => {
+  const tx = db.transaction('photos', 'readonly');
+  const store = tx.objectStore('photos');
+  const request = store.getAll();
+
+  request.onsuccess = () => {
+    const images = request.result;
+    if (images.length > 0) {
+      displayImage(images[currentIndex] || images[images.length - 1]);
+    } else {
+      document.getElementById('image-container').innerHTML = '<p>No photos yet</p>';
+    }
+  };
+};
+
+const displayImage = imageObj => {
+  if (!imageObj) return;
+  document.getElementById('image-container').innerHTML = `
+    <img src="${imageObj.data}" alt="Captured Photo" />
+    <p>${new Date(imageObj.timestamp).toLocaleString()}</p>
+  `;
+};
+
+const navigateGallery = direction => {
+  const tx = db.transaction('photos', 'readonly');
+  const store = tx.objectStore('photos');
+  store.getAll().onsuccess = e => {
+    const images = e.target.result;
+    if (!images.length) return;
+    currentIndex = (currentIndex + direction + images.length) % images.length;
+    displayImage(images[currentIndex]);
+  };
+};
+
+const clearGallery = () => {
+  const tx = db.transaction('photos', 'readwrite');
+  tx.objectStore('photos').clear().onsuccess = () => {
+    currentIndex = 0;
+    loadImages();
+  };
+};
+
+const downloadAllImages = () => {
+  const tx = db.transaction('photos', 'readonly');
+  const store = tx.objectStore('photos');
+  store.getAll().onsuccess = e => {
+    const images = e.target.result;
+    images.forEach((img, i) => {
+      const a = document.createElement('a');
+      a.href = img.data;
+      a.download = `photo_${i + 1}.jpg`;
+      a.click();
+    });
+  };
+};
+
+const showToast = () => {
+  const toast = document.getElementById('toast');
+  toast.classList.remove('hidden');
+  setTimeout(() => toast.classList.add('hidden'), 3000);
+};
+
+window.addEventListener('load', () => {
+  initDB();
+  startCamera();
+
+  document.getElementById('startCameraBtn').addEventListener('click', startCamera);
+  document.getElementById('switch-btn').addEventListener('click', switchCamera);
+  document.getElementById('capture-btn').addEventListener('click', capturePhoto);
+  document.getElementById('prev-btn').addEventListener('click', () => navigateGallery(-1));
+  document.getElementById('next-btn').addEventListener('click', () => navigateGallery(1));
+  document.getElementById('clear-gallery-btn').addEventListener('click', clearGallery);
+  document.getElementById('download-all-btn').addEventListener('click', downloadAllImages);
+  document.getElementById('dark-toggle').addEventListener('click', () => {
+    document.body.classList.toggle('light');
   });
-}
 
-function downloadImage(dataUrl, timestamp) {
-  const a = document.createElement("a");
-  a.href = dataUrl;
-  a.download = `photo_${timestamp}.jpg`;
-  a.click();
-}
-
-function showToast() {
-  const toast = document.getElementById("toast");
-  toast.classList.remove("hidden");
-  setTimeout(() => toast.classList.add("hidden"), 4000);
-}
-
-function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('service-worker.js');
   }
-}
+});
