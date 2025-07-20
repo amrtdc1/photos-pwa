@@ -145,11 +145,16 @@ const downloadAllImages = () => {
   const store = tx.objectStore('photos');
   store.getAll().onsuccess = e => {
     const images = e.target.result;
+
     images.forEach((img, i) => {
-      const a = document.createElement('a');
-      a.href = img.data;
-      a.download = `photo_${i + 1}.jpg`;
-      a.click();
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = img.data;
+        a.download = `photo_${i + 1}.jpg`;
+        document.body.appendChild(a);  // iOS may require it in DOM
+        a.click();
+        document.body.removeChild(a);
+      }, i * 500); // 500ms delay between each download
     });
   };
 };
