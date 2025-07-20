@@ -2,32 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- This is a comment 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> -->
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#000000" />
   <title>Photo Capture PWA</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css" />
-  <meta name="theme-color" content="#222" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
 </head>
 <body>
   <header>
-    <h1>Photo Journal</h1>
-    <button id="capture-btn">📸 Capture</button>
-    <label><input type="checkbox" id="autoplay-toggle" /> Autoplay</label>
+    <h1>Photo Gallery</h1>
+    <button id="dark-toggle">🌓 Toggle Dark Mode</button>
   </header>
 
-  <main id="slideshow">
-    <div id="image-container"></div>
-    <button id="prev-btn">←</button>
-    <button id="next-btn">→</button>
+  <main>
+	<div id="debug-log" style="color: red; font-size: 12px;"></div>
+    
+   <video id="camera" preload="none" playsinline muted></video>
+    
+    <div class="controls">
+      <button id="startCameraBtn">Start Camera</button>
+      <button id="switch-btn">Switch Camera</button>
+      <button id="capture-btn">Capture Photo</button>
+    </div>
+
+    <div id="image-container">
+      <p>No photos yet</p>
+    </div>
+
+    <div class="gallery-controls">
+      <button id="prev-btn">⟨ Prev</button>
+      <button id="next-btn">Next ⟩</button>
+      <button id="download-all-btn">Download All</button>
+      <button id="clear-gallery-btn">Clear Gallery</button>
+    </div>
+
+    <div id="toast" class="hidden">Max image limit (50) reached!</div>
   </main>
 
-  <div id="toast" class="hidden">50 image limit reached. Oldest will be deleted unless saved.</div>
+  <footer>
+    <p>Offline-ready PWA</p>
+  </footer>
 
-  <script src="app.js"></script>
+  <script src="main.js" defer></script>
 </body>
 </html>
